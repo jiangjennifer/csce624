@@ -18,8 +18,9 @@
     // Place the function names to calculate your features here. The function name will be the header of the csv file for that row.
     featureFunctions = [consineOfStartingAngle, sineOfStartingAngle,
     BoundingBoxDiagLen, BoundingBoxDiagAngle, distanceBetweenStartAndEnd, cosineFromStartToEnd,
-    cosineFromStartToEnd, rotChange, absRotChange, smoothness, strokeLen, squaredMaximumSpeed, totalStrokeTime, aspect,
-    curviness, bbArea];
+    sineFromStartToEnd, strokeLen, rotChange, absRotChange, smoothness, squaredMaximumSpeed, totalStrokeTime, aspect,
+    curviness, relativeRot, strokeLenToEndP, strokeLenToBBRatio, openess, bbArea, logArea, rotChangeToMotion, logStrokeLength,
+    logAspectRatio];
 
 
     /* Define your feature functions here */
@@ -142,12 +143,12 @@
         var P0 = sketch.points[0];
         var Pn = sketch.points[endIndex];
         var cosine = (Pn.x - P0.x) / distance(P0, Pn);
-        console.log("cosine from start to end " + cosine);
+        // console.log("cosine from start to end " + cosine);
         return cosine;
     }
 
     //Feature 7 -- sine
-    function cosineFromStartToEnd(sketch) {
+    function sineFromStartToEnd(sketch) {
         var endIndex = sketch.points.length - 1;
         var P0 = sketch.points[0];
         var Pn = sketch.points[endIndex];
@@ -163,8 +164,8 @@
             var id1 = points[i - 1];
             var id2 = points[i];
             // console.log(id1);
-            // console.log(sketch.pointObj[id1]);
-            var dis = distance(sketch.pointObj[id1], sketch.pointObj[id2]);
+            // console.log(sketch.pointsObj[id1]);
+            var dis = distance(sketch.pointsObj[id1], sketch.pointsObj[id2]);
             sum += dis;
         }
         // console.log("each stroke length is " + sum);
@@ -182,13 +183,14 @@
         return sum;
     }
 
+    /* Feature 9 -- rotation Change */
     // Calculate the angle between 2 lines
     function angleBetweenLines(dx, dy, dxPrev, dyPrev){
         var numer = dx * dyPrev - dxPrev * dy;
         var denom = dx * dxPrev + dy * dyPrev;
         // console.log("numer is " + numer);
         // console.log("denom is " + denom);
-        var theta = Math.atan(numer / denom);  
+        var theta = Math.atan(numer / denom);
         // if (isNaN(theta)) {
         //     console.log("dx: " + dx + " dy: " + dy + " dcPrev: " + dxPrev + " dyPrev: " + dyPrev);
         //     theta = Math.PI / 2;
@@ -203,7 +205,7 @@
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j - 1]] === undefined){
                     continue;
@@ -226,7 +228,7 @@
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j - 1]] === undefined){
                     continue;
@@ -249,7 +251,7 @@
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j - 1]] === undefined){
                     continue;
@@ -276,7 +278,7 @@
             for (var j = 1; j < points.length; j++) {
                 // var id1 = points[j - 1];
                 // var id2 = points[j];
-                var p1 = sketch.pointObj[points[j - 1]], p2 = sketch.pointObj[[points[j]]];
+                var p1 = sketch.pointsObj[points[j - 1]], p2 = sketch.pointsObj[[points[j]]];
                 if (p1.time === p2.time) {
                     continue;
                 }
@@ -294,22 +296,22 @@
     function totalStrokeTime(sketch) {
         var total = 0;
         var strokes = sketch.strokes;
-        // for (var i = 0; i < strokes.length; i++) {
-        //     var points = strokes[i].points;
-        //     var startPoint = sketch.pointObj[points[0]], endPoint = sketch.pointObj[points[points.length - 1]];
-        //     var subTime = endPoint.time - startPoint.time;
-        //     total += subTime;
-        // }
-        var lastStroke = strokes[strokes.length - 1].points;
-        var startPoint = sketch.pointObj[strokes[0].points[0]], endPoint = sketch.pointObj[lastStroke[lastStroke.length - 1]];
-        total = endPoint.time - startPoint.time;
-        console.log("Total stroke time is " + total);
+        for (var i = 0; i < strokes.length; i++) {
+            var points = strokes[i].points;
+            var startPoint = sketch.pointsObj[points[0]], endPoint = sketch.pointsObj[points[points.length - 1]];
+            var subTime = endPoint.time - startPoint.time;
+            total += subTime;
+        }
+        // var lastStroke = strokes[strokes.length - 1].points;
+        // var startPoint = sketch.pointsObj[strokes[0].points[0]], endPoint = sketch.pointsObj[lastStroke[lastStroke.length - 1]];
+        // total = endPoint.time - startPoint.time;
+        // console.log("Total stroke time is " + total);
         return total;
     }
 
     // Long feature 12
     function aspect(sketch){
-        var Rf4 = BoundingBoxDiagAngle(sketch); 
+        var Rf4 = BoundingBoxDiagAngle(sketch);
         var aspect = Math.abs(Math.PI / 4 - Rf4);
         // console.log("the aspect is:" + aspect);
         return aspect;
@@ -321,7 +323,7 @@
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j]] === "undefined" ||
                 typeof sketch.pointsObj[stroke[j - 1]] === undefined){
                     continue;
@@ -344,35 +346,80 @@
         return rotChange(sketch) / strokeLen(sketch);
     }
 
-    // Long feature 15 
+    /* Long feature 15 -- Stroke Length to End Point Ratio */
     function strokeLenToEndP(sketch){
-        console.log();
-        return;
+        var Rf5 = distanceBetweenStartAndEnd(sketch);
+        var Rf8 = strokeLen(sketch);
+        var res = Rf8 / Rf5;
+        // console.log("Stroke length to End point Ratio is " + res);
+        return res;
     }
 
-    // Long feature 16
+    /* Long feature 16 -- Stroke Length to Bouding Box Ratio */
     function strokeLenToBBRatio(sketch){
-        return;
+        var Rf8 = strokeLen(sketch);
+        var Rf3 = BoundingBoxDiagLen(sketch);
+        var res = Rf8 / Rf3;
+        // console.log("Stroke length to bouding box ratio is " + res);
+        return res;
     }
 
-    // Long feature 17
+    /* Long feature 17 -- Non-subjective openness */
     function openess(sketch){
-        return Rf5 / Rf3;
+        var Rf5 = distanceBetweenStartAndEnd(sketch);
+        var Rf3 =BoundingBoxDiagLen(sketch);
+        var res = Rf5 / Rf3;
+        // console.log("Non-subjective openness is " + res);
+        return res;
     }
 
-    // Long feature 18
+    /* Long feature 18 -- Area of Bouding Box */
     function bbArea(sketch){
         var pMax = maxPoint(sketch["points"]);
         var pMin = minPoint(sketch["points"]);
-        var width = Math.abs(pMax.x - pMin.x),
-            height = Math.abs(pMax.y - pMin.y);
-            area = width * length;
-        console.log("area of bounding box is: " + area);
+        var width = pMax.x - pMin.x,
+            height = pMax.y - pMin.y;
+            area = width * height;
+        // console.log("area of bounding box is: " + area);
         return area;
     }
-    
 
+    /* Long feature 19 -- Log of Area */
+    function logArea(sketch) {
+        var area = bbArea(sketch);
+        var logArea = Math.log(area);
+        // console.log("Log of Area is " + logArea);
+        return logArea;
+    }
 
+    /*Long feature 20 -- Rotational Change to Motion */
+    function rotChangeToMotion(sketch) {
+        var Rf9 = rotChange(sketch);
+        var Rf10 = absRotChange(sketch);
+        var res = Rf9 / Rf10;
+        // console.log("Rotation Change to Motion is " + res);
+        return res;
+    }
+
+    /*Long feature 21 -- Log of Stroke Length */
+    function logStrokeLength(sketch) {
+        var Rf8 = strokeLen(sketch);
+        var res = Math.log(Rf8);
+        // console.log("Log of stroke length is " + res);
+        return res;
+    }
+
+    /*Long feature 22 -- Log of Aspect Ratio */
+    function toDegrees(angle) {
+        return angle * (180 / Math.PI);
+    }
+    function logAspectRatio(sketch) {
+        var Lf12 = aspect(sketch);
+        var Lf12Degree = toDegrees(Lf12);
+        var res = Math.log(Lf12Degree);
+        // console.log("Log of Aspect Ratio is " + res);
+        return res;
+    }
 
 	//
 	//
@@ -402,6 +449,7 @@
 		// Now just push back all the feature values in order.
 		//row.push(calculateFeatureA(sketch));
 		//row.push(calculateFeatureB(sketch));
+        console.log(featureFunctions.length);
         for (var i = 0; i < featureFunctions.length; i++) {
             var f = featureFunctions[i];
             row.push(f(sketch));
@@ -440,7 +488,7 @@
 
     function getSketch() {
     	if (counter == sketchIds.length || counter == maxResults) {
-            // saveCSV();
+            saveCSV();
             return; } // Reached the last sketch.
     	var id = sketchIds[counter];
     	counter++;
