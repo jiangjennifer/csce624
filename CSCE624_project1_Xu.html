@@ -16,25 +16,64 @@
 
     // The interpretation will automatically be added to each row of csv data for you.
     // Place the function names to calculate your features here. The function name will be the header of the csv file for that row.
-    featureFunctions = [featureA, featureB, myFeature, BoundingBoxDiagLen];
+    featureFunctions = [consineOfStartingAngle, sineOfStartingAngle,
+    BoundingBoxDiagLen, BoundingBoxDiagAngle, distanceBetweenStartAndEnd, cosineFromStartToEnd,
+    cosineFromStartToEnd, strokeLen, squaredMaximumSpeed, totalStrokeTime];
 
-    
-    
+
+
     /* Define your feature functions here */
     /* Each function only needs to return the feature value */
-    
-	function featureA(sketch) {
-        console.log(sketch); // Console logging might be beneficial to see the structure.
-		/* Basic structure is as follows
-		{
-			points: {id: {x: int, y: int, time: intString}, ...},
-			shapes: [{interpretation: string}], // Shapes should only have 1 entry and the interpretation is all you care about. Either arrow or something else
-			strokes: [{id: string, time: string, points: [pointId1, pointId2, ...]}, ...]
-		}
-		*/
-		return sketch.strokes.length;
-	}
 
+    //Calculate distance between two points
+    function distance(p1, p2){
+        var a = p1.x - p2.x;
+        var b = p1.y - p2.y;
+        var c = Math.sqrt(a * a + b * b);
+        // console.log("distance of two points： " + c);
+        return c;
+    }
+
+    function squareDistance(p1, p2) {
+        var a = p1.x - p2.x;
+        var b = p1.y - p2.y;
+        var c = a * a + b * b;
+        return c;
+    }
+
+    /* Rubine feature 1 -- cosine of starting angle of the stroke */
+    function consineOfStartingAngle(sketch) {
+        var p0 = sketch.points[0];
+        var p2 = sketch.points[2];
+        var dis = distance(p0, p2);
+        var cosine = (p2.x - p0.x) / dis;
+        // console.log("cosine is " + cosine);
+        return cosine;
+    }
+
+    /* Rubine feature 2 -- sine of starting angle of the stroke */
+    function sineOfStartingAngle(sketch) {
+        var p0 = sketch.points[0];
+        var p2 = sketch.points[2];
+        var dis = distance(p0, p2);
+        var sine = (p2.y - p0.y) / dis;
+        // console.log("sine is " + sine);
+        return sine;
+    }
+
+	// function featureA(sketch) {
+    //     console.log(sketch); // Console logging might be beneficial to see the structure.
+	// 	/* Basic structure is as follows
+	// 	{
+	// 		points: {id: {x: int, y: int, time: intString}, ...},
+	// 		shapes: [{interpretation: string}], // Shapes should only have 1 entry and the interpretation is all you care about. Either arrow or something else
+	// 		strokes: [{id: string, time: string, points: [pointId1, pointId2, ...]}, ...]
+	// 	}
+	// 	*/
+	// 	return sketch.strokes.length;
+	// }
+
+    /* Rubine Feature 3 --  Length of Bouding Box Diagonal */
     function maxPoint(points){
         var xMax = Number.MIN_VALUE;
         var yMax = Number.MIN_VALUE;
@@ -64,14 +103,6 @@
         return {x:xMin, y:yMin};
     }
 
-    function distance(p1, p2){
-        var a = p1.x - p2.x;
-        var b = p1.y - p2.y;
-        var c = Math.sqrt(a * a + b * b);
-        console.log("distance of two points： " + c);
-        return c;
-    }
-
     function BoundingBoxDiagLen(sketch){
         var pMax = maxPoint(sketch["points"]);
         var pMin = minPoint(sketch["points"]);
@@ -81,28 +112,116 @@
         // console.log("pMax y is " + pMax.y);
         return distance(pMax, pMin);
     }
+
+    //Rubine Feature 4 -- Angle of Bouding Box Diagonal
     function BoundingBoxDiagAngle(sketch){
         var pMax = maxPoint(sketch["points"]);
         var pMin = minPoint(sketch["points"]);
         var denom = pMax["x"] - pMin["x"];
         var numer = pMax["y"] - pMin["y"];
         if (denom == 0) return 0;
-        return Math.atan(numer / denom);
+        var angle = Math.atan(numer / denom);
+        // console.log("Angle is " + angle);
+        return angle;
     }
 
-	function featureB(sketch) {
-		return 2;
-	}
-    
-    function myFeature(sketch) {
-        return 3;
+    //Rubine Feature 5 -- distance between the start and the end point of the stroke
+    function distanceBetweenStartAndEnd(sketch) {
+        var endIndex = sketch.points.length - 1;
+        var P0 = sketch.points[0];
+        var Pn = sketch.points[endIndex];
+        var dis = distance(P0, Pn);
+        // console.log("distance between start and end " + dis);
+        return dis;
     }
 
+    /*Rubine Feature 6 & 7 -- Angle from Start to Endpoint */
+    //Feature 6 -- cosine
+    function cosineFromStartToEnd(sketch) {
+        var endIndex = sketch.points.length - 1;
+        var P0 = sketch.points[0];
+        var Pn = sketch.points[endIndex];
+        var cosine = (Pn.x - P0.x) / distance(P0, Pn);
+        console.log("cosine from start to end " + cosine);
+        return cosine;
+    }
 
+    //Feature 7 -- sine
+    function cosineFromStartToEnd(sketch) {
+        var endIndex = sketch.points.length - 1;
+        var P0 = sketch.points[0];
+        var Pn = sketch.points[endIndex];
+        var sine = (Pn.y - P0.y) / distance(P0, Pn);
+        // console.log("sine from start to end " + sine);
+        return sine;
+    }
 
+    /*Feature 8 -- Stroke Length */
+    function eachStrokeLen(sketch, points) {
+        var sum = 0;
+        for (var i = 1; i < points.length; i++) {
+            var id1 = points[i - 1];
+            var id2 = points[i];
+            // console.log(id1);
+            // console.log(sketch.pointObj[id1]);
+            var dis = distance(sketch.pointObj[id1], sketch.pointObj[id2]);
+            sum += dis;
+        }
+        // console.log("each stroke length is " + sum);
+        return sum;
+    }
 
+    function strokeLen(sketch) {
+        var strokes = sketch.strokes;
+        var sum = 0;
+        for (var i = 0; i < strokes.length; i++) {
+            var subSum = eachStrokeLen(sketch, strokes[i].points);
+            sum += subSum;
+        }
+        // console.log("stroke length is " + sum);
+        return sum;
+    }
 
+    /*Feature 12 & 13 -- Time measures */
+    //Feature 12 -- Squared Value of maximum speed reached
+    function squaredMaximumSpeed(sketch) {
+        var strokes = sketch.strokes;
+        var max = Number.MIN_VALUE;
+        for (var i = 0; i < strokes.length; i++) {
+            var points = strokes[i].points;
+            for (var j = 1; j < points.length; j++) {
+                // var id1 = points[j - 1];
+                // var id2 = points[j];
+                var p1 = sketch.pointObj[points[j - 1]], p2 = sketch.pointObj[[points[j]]];
+                if (p1.time === p2.time) {
+                    continue;
+                }
+                var timeDiff = p2.time - p1.time;
+                var squareDis = squareDistance(p1, p2);
+                var res = squareDis / (timeDiff * timeDiff);
+                max = Math.max(max, res);
+            }
+        }
+        // console.log("Squared max speed is " + max);
+        return max;
+    }
 
+    //Feature 13 -- Total time to draw a stroke from start to finish
+    function totalStrokeTime(sketch) {
+        var total = 0;
+        var strokes = sketch.strokes;
+        // for (var i = 0; i < strokes.length; i++) {
+        //     var points = strokes[i].points;
+        //     var startPoint = sketch.pointObj[points[0]], endPoint = sketch.pointObj[points[points.length - 1]];
+        //     var subTime = endPoint.time - startPoint.time;
+        //     total += subTime;
+        // }
+        var lastStroke = strokes[strokes.length - 1].points;
+        var startPoint = sketch.pointObj[strokes[0].points[0]], endPoint = sketch.pointObj[lastStroke[lastStroke.length - 1]];
+        total = endPoint.time - startPoint.time;
+        console.log("Total stroke time is " + total);
+        return total;
+    }
 
 
 
@@ -111,7 +230,7 @@
 	// Everything below here you shouldn't need to worry about.
 	//
 	//
-    
+
     // Begin processing once webpage loaded
 	$(document).ready(function() {
         features = [['interpretation']];
@@ -122,7 +241,7 @@
         }
         getSketchIds();
 	});
-    
+
     function calculateFeatures(sketch) {
 		var row = [];
 		if (sketch.shapes[0].interpretation == 'arrow') {
@@ -171,8 +290,8 @@
     }
 
     function getSketch() {
-    	if (counter == sketchIds.length || counter == maxResults) { 
-            // saveCSV(); 
+    	if (counter == sketchIds.length || counter == maxResults) {
+            // saveCSV();
             return; } // Reached the last sketch.
     	var id = sketchIds[counter];
     	counter++;
