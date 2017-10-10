@@ -20,7 +20,7 @@
     BoundingBoxDiagLen, BoundingBoxDiagAngle, distanceBetweenStartAndEnd, cosineFromStartToEnd,
     sineFromStartToEnd, strokeLen, rotChange, absRotChange, smoothness, squaredMaximumSpeed, totalStrokeTime, aspect,
     curviness, relativeRot, strokeLenToEndP, strokeLenToBBRatio, openess, bbArea, logArea, rotChangeToMotion, logStrokeLength,
-    logAspectRatio];
+    logAspectRatio, maxCurve, averageCurvature, DCR, strokesNumber, pointsNumber, anglesNumber];
 
 
     /* Define your feature functions here */
@@ -62,24 +62,20 @@
         return sine;
     }
 
-	// function featureA(sketch) {
-    //     console.log(sketch); // Console logging might be beneficial to see the structure.
-	// 	/* Basic structure is as follows
-	// 	{
-	// 		points: {id: {x: int, y: int, time: intString}, ...},
-	// 		shapes: [{interpretation: string}], // Shapes should only have 1 entry and the interpretation is all you care about. Either arrow or something else
-	// 		strokes: [{id: string, time: string, points: [pointId1, pointId2, ...]}, ...]
-	// 	}
-	// 	*/
-	// 	return sketch.strokes.length;
-	// }
+	/* Basic structure is as follows
+	{
+		points: {id: {x: int, y: int, time: intString}, ...},
+		shapes: [{interpretation: string}], // Shapes should only have 1 entry and the interpretation is all you care about. Either arrow or something else
+		strokes: [{id: string, time: string, points: [pointId1, pointId2, ...]}, ...]
+	}
+	*/
+
 
     /* Rubine Feature 3 --  Length of Bouding Box Diagonal */
     function maxPoint(points){
         var xMax = Number.MIN_VALUE;
         var yMax = Number.MIN_VALUE;
         for (var i = 0; i < points.length; i++){
-            // console.log('points' + i + "is" + "{ x:" + points[i]["x"] + ", y:" + points[i]["y"] + " }");
             if (points[i]["x"] > xMax){
                 xMax = points[i]["x"];
             }
@@ -107,10 +103,6 @@
     function BoundingBoxDiagLen(sketch){
         var pMax = maxPoint(sketch["points"]);
         var pMin = minPoint(sketch["points"]);
-        // console.log("pMin x is " + pMin.x);
-        // console.log("pMin y is " + pMin.y);
-        // console.log("pMax x is " + pMax.x);
-        // console.log("pMax y is " + pMax.y);
         return distance(pMax, pMin);
     }
 
@@ -188,33 +180,31 @@
     function angleBetweenLines(dx, dy, dxPrev, dyPrev){
         var numer = dx * dyPrev - dxPrev * dy;
         var denom = dx * dxPrev + dy * dyPrev;
-        // console.log("numer is " + numer);
-        // console.log("denom is " + denom);
         var theta = Math.atan(numer / denom);
-        // if (isNaN(theta)) {
-        //     console.log("dx: " + dx + " dy: " + dy + " dcPrev: " + dxPrev + " dyPrev: " + dyPrev);
-        //     theta = Math.PI / 2;
-        // }
-        // console.log("theta is " + theta);
         return theta;
     }
 
     // Rubine feature 9
+    function rotChangeHelper(sketch, stroke, j) {
+        if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
+            typeof sketch.pointsObj[stroke[j]] === "undefined" ||
+            typeof sketch.pointsObj[stroke[j - 1]] === undefined){
+                return NaN;
+        }
+        var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
+            yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
+            xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
+            yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
+        var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+        return subSum;
+    }
+
     function rotChange(sketch){
         var angleSum = 0;
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
-                    continue;
-                }
-                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
-                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
-                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
-                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
-                var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+                var subSum = rotChangeHelper(sketch, stroke, j);
                 angleSum += isNaN(subSum) ? 0 : subSum;
             }
         }
@@ -222,22 +212,14 @@
         // console.log("rotational change is: " + angleSum);
         return angleSum;
     }
+
     // Rubine feature 10
     function absRotChange(sketch){
         var absSum = 0;
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
-                    continue;
-                }
-                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
-                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
-                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
-                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
-                var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+                var subSum = rotChangeHelper(sketch, stroke, j);
                 absSum += isNaN(subSum) ? 0 : Math.abs(subSum);
             }
         }
@@ -251,16 +233,7 @@
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
-                    continue;
-                }
-                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
-                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
-                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
-                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
-                var subSum = Math.pow(angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev), 2);
+                var subSum = Math.pow(rotChangeHelper(sketch, stroke, j), 2);
                 squareSum += isNaN(subSum) ? 0 : Math.abs(subSum);
             }
         }
@@ -323,16 +296,7 @@
         for (var i = 0; i < sketch["strokes"].length; i++){
             var stroke = sketch["strokes"][i]["points"];
             for (var j = 1; j < stroke.length - 1; j++){
-                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
-                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
-                    continue;
-                }
-                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
-                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
-                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
-                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
-                var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+                var subSum = rotChangeHelper(sketch, stroke, j);
                 curveSum += (isNaN(subSum) || subSum >= (19 * Math.PI / 180)) ? 0 : Math.abs(subSum);
             }
         }
@@ -421,11 +385,61 @@
         return res;
     }
 
-	//
-	//
-	// Everything below here you shouldn't need to worry about.
-	//
-	//
+    /*Feature 25 & 26 -- Maximum Curvature and average curvature */
+    function maxCurveandCounter(sketch) {
+        var max = Number.MIN_VALUE;
+        var counter = 0;
+        for (var i = 0; i < sketch["strokes"].length; i++){
+            var stroke = sketch["strokes"][i]["points"];
+            for (var j = 1; j < stroke.length - 1; j++){
+                var change = rotChangeHelper(sketch, stroke, j);
+                if (isNaN(change)) {
+                    continue;
+                }
+                max = Math.max(max, Math.abs(change));
+                counter++;
+            }
+        }
+        return {max: max, counter: counter};
+    }
+
+    //Feature 25 -- Maximum curvature
+    function maxCurve(sketch) {
+        return maxCurveandCounter(sketch).max;
+    }
+
+    //Feature 26 -- Average curvature
+    function averageCurvature(sketch) {
+        var totalChange = absRotChange(sketch);
+        return totalChange / maxCurveandCounter(sketch).counter;
+    }
+
+    /*Feature 27 -- DCR (direction change ratio) */
+    function DCR(sketch) {
+        var max = maxCurve(sketch);
+        var averageChange = averageCurvature(sketch);
+        var DCR = max / averageChange;
+        // console.log("Direction change ratio is " + DCR);
+        return DCR;
+    }
+
+    /*Feature 28 -- # of strokes */
+    function strokesNumber(sketch) {
+        return sketch.strokes.length;
+    }
+
+    /*Feature 29 -- # of points */
+    function pointsNumber(sketch) {
+        return sketch.points.length;
+    }
+
+    /*Feature 30 -- # of angles */
+    function anglesNumber(sketch) {
+        return maxCurveandCounter(sketch).counter;
+    }
+
+
+	/* Everything below here you shouldn't need to worry about. */
 
     // Begin processing once webpage loaded
 	$(document).ready(function() {
@@ -447,9 +461,6 @@
 		}
 
 		// Now just push back all the feature values in order.
-		//row.push(calculateFeatureA(sketch));
-		//row.push(calculateFeatureB(sketch));
-        console.log(featureFunctions.length);
         for (var i = 0; i < featureFunctions.length; i++) {
             var f = featureFunctions[i];
             row.push(f(sketch));
