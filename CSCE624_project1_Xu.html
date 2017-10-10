@@ -18,8 +18,8 @@
     // Place the function names to calculate your features here. The function name will be the header of the csv file for that row.
     featureFunctions = [consineOfStartingAngle, sineOfStartingAngle,
     BoundingBoxDiagLen, BoundingBoxDiagAngle, distanceBetweenStartAndEnd, cosineFromStartToEnd,
-    cosineFromStartToEnd, strokeLen, squaredMaximumSpeed, totalStrokeTime];
-
+    cosineFromStartToEnd, rotChange, absRotChange, smoothness, strokeLen, squaredMaximumSpeed, totalStrokeTime, aspect,
+    curviness, bbArea];
 
 
     /* Define your feature functions here */
@@ -182,6 +182,90 @@
         return sum;
     }
 
+    // Calculate the angle between 2 lines
+    function angleBetweenLines(dx, dy, dxPrev, dyPrev){
+        var numer = dx * dyPrev - dxPrev * dy;
+        var denom = dx * dxPrev + dy * dyPrev;
+        // console.log("numer is " + numer);
+        // console.log("denom is " + denom);
+        var theta = Math.atan(numer / denom);  
+        // if (isNaN(theta)) {
+        //     console.log("dx: " + dx + " dy: " + dy + " dcPrev: " + dxPrev + " dyPrev: " + dyPrev);
+        //     theta = Math.PI / 2;
+        // }
+        // console.log("theta is " + theta);
+        return theta;
+    }
+
+    // Rubine feature 9
+    function rotChange(sketch){
+        var angleSum = 0;
+        for (var i = 0; i < sketch["strokes"].length; i++){
+            var stroke = sketch["strokes"][i]["points"];
+            for (var j = 1; j < stroke.length - 1; j++){
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
+                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
+                    continue;
+                }
+                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
+                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
+                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
+                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
+                var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+                angleSum += isNaN(subSum) ? 0 : subSum;
+            }
+        }
+        // console.log("dx dy dx-1 dy-1: " + xDelta + " " + yDelta +  " " + xDeltaPrev + " " + yDeltaPrev);
+        // console.log("rotational change is: " + angleSum);
+        return angleSum;
+    }
+    // Rubine feature 10
+    function absRotChange(sketch){
+        var absSum = 0;
+        for (var i = 0; i < sketch["strokes"].length; i++){
+            var stroke = sketch["strokes"][i]["points"];
+            for (var j = 1; j < stroke.length - 1; j++){
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
+                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
+                    continue;
+                }
+                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
+                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
+                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
+                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
+                var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+                absSum += isNaN(subSum) ? 0 : Math.abs(subSum);
+            }
+        }
+        // console.log("abs Rot change is: " + absSum);
+        return absSum;
+    }
+
+    // Rubine feature 11
+    function smoothness(sketch){
+        var squareSum = 0;
+        for (var i = 0; i < sketch["strokes"].length; i++){
+            var stroke = sketch["strokes"][i]["points"];
+            for (var j = 1; j < stroke.length - 1; j++){
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
+                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
+                    continue;
+                }
+                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
+                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
+                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
+                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
+                var subSum = Math.pow(angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev), 2);
+                squareSum += isNaN(subSum) ? 0 : Math.abs(subSum);
+            }
+        }
+        // console.log("squareSum is: " + squareSum);
+        return squareSum;
+    }
+
     /*Feature 12 & 13 -- Time measures */
     //Feature 12 -- Squared Value of maximum speed reached
     function squaredMaximumSpeed(sketch) {
@@ -222,6 +306,71 @@
         console.log("Total stroke time is " + total);
         return total;
     }
+
+    // Long feature 12
+    function aspect(sketch){
+        var Rf4 = BoundingBoxDiagAngle(sketch); 
+        var aspect = Math.abs(Math.PI / 4 - Rf4);
+        // console.log("the aspect is:" + aspect);
+        return aspect;
+    }
+
+    // Long feature 13
+    function curviness(sketch){
+        var curveSum = 0;
+        for (var i = 0; i < sketch["strokes"].length; i++){
+            var stroke = sketch["strokes"][i]["points"];
+            for (var j = 1; j < stroke.length - 1; j++){
+                if (typeof sketch.pointsObj[stroke[j + 1]] === "undefined" || 
+                typeof sketch.pointsObj[stroke[j]] === "undefined" ||
+                typeof sketch.pointsObj[stroke[j - 1]] === undefined){
+                    continue;
+                }
+                var xDelta = sketch.pointsObj[stroke[j + 1]]["x"] - sketch.pointsObj[stroke[j]]["x"],
+                    yDelta = sketch.pointsObj[stroke[j + 1]]["y"] - sketch.pointsObj[stroke[j]]["y"],
+                    xDeltaPrev = sketch.pointsObj[stroke[j]]["x"] - sketch.pointsObj[stroke[j - 1]]["x"],
+                    yDeltaPrev = sketch.pointsObj[stroke[j]]["y"] - sketch.pointsObj[stroke[j - 1]]["y"];
+                var subSum = angleBetweenLines(xDelta, yDelta, xDeltaPrev, yDeltaPrev);
+                curveSum += (isNaN(subSum) || subSum >= (19 * Math.PI / 180)) ? 0 : Math.abs(subSum);
+            }
+        }
+        // console.log("curviness is: " + curveSum);
+        return curveSum;
+    }
+
+    // Long feature 14 to be added to features array
+    function relativeRot(sketch){
+        // console.log("relative Rot is: " + rotChange(sketch) / strokeLen(sketch));
+        return rotChange(sketch) / strokeLen(sketch);
+    }
+
+    // Long feature 15 
+    function strokeLenToEndP(sketch){
+        console.log();
+        return;
+    }
+
+    // Long feature 16
+    function strokeLenToBBRatio(sketch){
+        return;
+    }
+
+    // Long feature 17
+    function openess(sketch){
+        return Rf5 / Rf3;
+    }
+
+    // Long feature 18
+    function bbArea(sketch){
+        var pMax = maxPoint(sketch["points"]);
+        var pMin = minPoint(sketch["points"]);
+        var width = Math.abs(pMax.x - pMin.x),
+            height = Math.abs(pMax.y - pMin.y);
+            area = width * length;
+        console.log("area of bounding box is: " + area);
+        return area;
+    }
+    
 
 
 
@@ -302,8 +451,9 @@
 			contentType: "application/json",
 			success: function(res) {
 				var sketch = res[0];
-				sketch.pointObj = arrayToObj(sketch.points);
+				sketch.pointsObj = arrayToObj(sketch.points);
 				document.getElementById('progress').textContent = 'Calculating features for sketch ' + counter + ' of ' + maxResults;
+                // console.log("id is " + id);
 				calculateFeatures(sketch);
 				getSketch();
 			}
